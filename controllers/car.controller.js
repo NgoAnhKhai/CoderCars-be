@@ -5,7 +5,10 @@ const carController = {};
 carController.createCar = async (req, res, next) => {
   try {
     const info = req.body;
-    if (!info) throw new AppError(402, "Bad Request", "Create car Error");
+
+    if (!info || Object.keys(info).length === 0) {
+      throw new AppError(400, "No data provided", "Create Car Error");
+    }
     const created = await Car.create(info);
     sendResponse(
       res,
@@ -21,14 +24,18 @@ carController.createCar = async (req, res, next) => {
 };
 
 carController.getCars = async (req, res, next) => {
-  const filter = {};
+  const { page = 1, limit = 5, ...filter } = req.query;
   try {
-    const listOffFound = await Car.find(filter).limit(2);
+    const skip = (page - 1) * limit;
+
+    const listOffFound = await Car.find(filter).skip(skip).limit(Number(limit));
+    const total = await Car.countDocuments(filter);
+
     sendResponse(
       res,
       200,
       true,
-      { data: { cars: listOffFound, page: 1, total: 1192 } },
+      { data: { cars: listOffFound, page: Number(page), total } },
       null,
       "Get Car List Successfully"
     );
@@ -42,6 +49,12 @@ carController.editCar = async (req, res, next) => {
   const updateInfo = req.body;
   const option = { new: true };
   try {
+    // Kiểm tra ID
+    if (!targetId) throw new AppError(400, "No ID provided", "Edit Car Error");
+    // Kiểm tra dữ liệu
+    if (!updateInfo || Object.keys(updateInfo).length === 0) {
+      throw new AppError(400, "No data provided to update", "Edit Car Error");
+    }
     const updated = await Car.findByIdAndUpdate(targetId, updateInfo, option);
     sendResponse(
       res,
